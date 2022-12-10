@@ -29,6 +29,9 @@ from utils import plot_spectrogram, scan_checkpoint, load_checkpoint, \
 
 torch.backends.cudnn.benchmark = True
 
+#from functools import partial
+#logfile = open('exp_logs','w')
+#print = partial(print,file=logfile)
 
 def train(rank, local_rank, a, h):
     if h.num_gpus > 1:
@@ -96,7 +99,10 @@ def train(rank, local_rank, a, h):
                            f0_stats=h.get('f0_stats', None),
                            f0_normalize=h.get('f0_normalize', False), f0_feats=h.get('f0_feats', False),
                            f0_median=h.get('f0_median', False), f0_interp=h.get('f0_interp', False),
-                           vqvae=h.get('code_vq_params', False))
+                           vqvae=h.get('code_vq_params', False),
+                           use_emo_vec=h.get('use_emovec', False),
+                           emo_vec_path=h.get('emo_vec_path', None)
+                           )
 
     train_sampler = DistributedSampler(trainset) if h.num_gpus > 1 else None
 
@@ -110,7 +116,10 @@ def train(rank, local_rank, a, h):
                                multispkr=h.get('multispkr', None),
                                f0_stats=h.get('f0_stats', None), f0_normalize=h.get('f0_normalize', False),
                                f0_feats=h.get('f0_feats', False), f0_median=h.get('f0_median', False),
-                               f0_interp=h.get('f0_interp', False), vqvae=h.get('code_vq_params', False))
+                               f0_interp=h.get('f0_interp', False), vqvae=h.get('code_vq_params', False),
+                                use_emo_vec=h.get('use_emovec', False),
+                                emo_vec_path=h.get('emo_vec_path', None)
+                               )
         validation_loader = DataLoader(validset, num_workers=0, shuffle=False, sampler=None,
                                        batch_size=h.batch_size, pin_memory=True, drop_last=True)
 

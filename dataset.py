@@ -18,6 +18,7 @@ import torch.utils.data
 import torch.utils.data
 from librosa.filters import mel as librosa_mel_fn
 from librosa.util import normalize
+import pickle
 
 MAX_WAV_VALUE = 32768.0
 
@@ -146,6 +147,8 @@ def parse_speaker(path, method):
         return path.name.split('_')[0]
     elif method == 'single':
         return 'A'
+    elif method == 'aishell':
+        return path.stem[:-4]
     elif callable(method):
         return method(path)
     else:
@@ -157,7 +160,10 @@ class CodeDataset(torch.utils.data.Dataset):
                  hop_size, win_size, sampling_rate, fmin, fmax, split=True, n_cache_reuse=1,
                  device=None, fmax_loss=None, f0=None, multispkr=False, pad=None,
                  f0_stats=None, f0_normalize=False, f0_feats=False, f0_median=False,
-                 f0_interp=False, vqvae=False):
+                 f0_interp=False, vqvae=False, 
+                 use_emo_vec=False,emo_vec_path=None,
+                #  use_emo_stream=False,emo_stream_path=None
+                 ):
         self.audio_files, self.codes = training_files
         random.seed(1234)
         self.segment_size = segment_size
@@ -186,6 +192,12 @@ class CodeDataset(torch.utils.data.Dataset):
             self.f0_stats = torch.load(f0_stats)
         self.multispkr = multispkr
         self.pad = pad
+        self.use_emo_vec = use_emo_vec
+        if self.use_emo_vec:
+            assert emo_vec_path is not None,'need to pass pkl to avg emo reps'
+            with open(emo_vec_path,'rb') as f:
+                pkls = pickle.load(f)
+                self.emovecs = [pkls[str(fpath)] for fpath in self.audio_files]
         if self.multispkr:
             spkrs = [parse_speaker(f, self.multispkr) for f in self.audio_files]
             spkrs = list(set(spkrs))
@@ -281,7 +293,9 @@ class CodeDataset(torch.utils.data.Dataset):
 
         if self.multispkr:
             feats['spkr'] = self._get_spkr(index)
-
+        # TODO if self.use_emovec, get embedding and store in feats
+        if self.use_emo_vec:
+            feats['emovec'] = self.emovecs[index] # get emo vector from loaded
         if self.f0_normalize:
             spkr_id = self._get_spkr(index).item()
 

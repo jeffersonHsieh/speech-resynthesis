@@ -15,9 +15,22 @@ import soundfile as sf
 import librosa
 from tqdm import tqdm
 
+import os
 
-def pad_data(p, out_dir, trim=False, pad=False):
-    data, sr = sf.read(p)
+def find_all_files(path_dir, extension):
+    # import pdb;pdb.set_trace()
+    out = []
+    for root, dirs, filenames in os.walk(path_dir,followlinks=True):
+        for f in filenames:
+            if f.endswith(extension):
+                out.append(((str(Path(f).stem)), os.path.join(root, f)))
+    return out
+
+
+def pad_data(p, in_dir, out_dir, trim=False, pad=False):
+    infile = os.path.join(in_dir,p)
+    outpath = os.path.join(out_dir,os.path.splitext(p)[0]+".wav")
+    data, sr = sf.read(infile)
     if sr != 16000:
         data = resampy.resample(data, sr, 16000)
         sr = 16000
@@ -31,7 +44,8 @@ def pad_data(p, out_dir, trim=False, pad=False):
                           constant_values=0)
         assert data.shape[0] % 1280 == 0
 
-    outpath = out_dir / p.name
+    # outpath = out_dir / p.name
+    outpath = Path(outpath)
     outpath.parent.mkdir(exist_ok=True, parents=True)
     sf.write(outpath, data, sr)
 
@@ -45,12 +59,23 @@ def main():
     parser.add_argument('--postfix', type=str, default='wav')
     args = parser.parse_args()
 
-    files = list(Path(args.srcdir).glob(f'**/*{args.postfix}'))
+    # files = list(Path(args.srcdir).glob(f'**/*{args.postfix}'))
     out_dir = Path(args.outdir)
 
-    pad_data_ = partial(pad_data, out_dir=out_dir, trim=args.trim, pad=args.pad)
+    audio_files = find_all_files(args.srcdir,args.postfix)
+    # import pdb;pdb.set_trace()
+
+    audio_files = [os.path.relpath(file[-1], start=args.srcdir) for file in audio_files]
+
+    # Create all the directories needed
+    rel_dirs_set = set([os.path.dirname(file) for file in audio_files])
+    for rel_dir in rel_dirs_set:
+        Path(os.path.join(args.outdir, rel_dir)).mkdir(parents=True, exist_ok=True)
+
+
+    pad_data_ = partial(pad_data, in_dir=args.srcdir,out_dir=out_dir, trim=args.trim, pad=args.pad)
     with Pool(40) as p:
-        rets = list(tqdm(p.imap(pad_data_, files), total=len(files)))
+        rets = list(tqdm(p.imap(pad_data_, audio_files), total=len(audio_files)))
 
 
 if __name__ == '__main__':

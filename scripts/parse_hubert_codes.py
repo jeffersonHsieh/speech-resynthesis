@@ -89,7 +89,6 @@ def main():
         fnames = [l.strip() for l in f.readlines()]
     wav_root = Path(fnames[0])
     fnames = fnames[1:]
-
     with open(args.codes) as f:
         codes = [l.strip() for l in f.readlines()]
 

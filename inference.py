@@ -110,7 +110,6 @@ def init_worker(queue, arguments):
     state_dict_g = load_checkpoint(cp_g)
     generator.load_state_dict(state_dict_g['generator'])
 
-
     if a.code_file is not None:
         dataset = [x.strip().split('|') for x in open(a.code_file).readlines()]
 
@@ -128,6 +127,8 @@ def init_worker(queue, arguments):
                               f0_stats=h.get('f0_stats', None), f0_normalize=h.get('f0_normalize', False),
                               f0_feats=h.get('f0_feats', False), f0_median=h.get('f0_median', False),
                               f0_interp=h.get('f0_interp', False), vqvae=h.get('code_vq_params', False),
+                              use_emo_vec=h.get('use_emovec', False),
+                              emo_vec_path=h.get('emo_vec_path', None),
                               pad=a.pad)
 
     if a.unseen_f0:
@@ -249,13 +250,13 @@ def main():
     parser.add_argument('--unseen-f0', type=Path)
     parser.add_argument('-n', type=int, default=10)
     a = parser.parse_args()
-
+    NUM_DEVICES=1
     seed = 52
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
 
-    ids = list(range(8))
+    ids = list(range(NUM_DEVICES))
     manager = Manager()
     idQueue = manager.Queue()
     for i in ids:
@@ -294,6 +295,8 @@ def main():
                               f0_stats=h.get('f0_stats', None), f0_normalize=h.get('f0_normalize', False),
                               f0_feats=h.get('f0_feats', False), f0_median=h.get('f0_median', False),
                               f0_interp=h.get('f0_interp', False), vqvae=h.get('code_vq_params', False),
+                              use_emo_vec=h.get('use_emovec', False),
+                              emo_vec_path=h.get('emo_vec_path', None),
                               pad=a.pad)
 
     if a.debug:
@@ -314,7 +317,7 @@ def main():
     else:
         idx = list(range(len(dataset)))
         random.shuffle(idx)
-        with Pool(8, init_worker, (idQueue, a)) as pool:
+        with Pool(NUM_DEVICES, init_worker, (idQueue, a)) as pool:
             for i, _ in enumerate(pool.imap(inference, idx), 1):
                 bar = progbar(i, len(idx))
                 message = f'{bar} {i}/{len(idx)} '

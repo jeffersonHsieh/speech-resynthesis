@@ -128,9 +128,14 @@ class CodeGenerator(Generator):
         self.dict = nn.Embedding(h.num_embeddings, h.embedding_dim)
         self.f0 = h.get('f0', None)
         self.multispkr = h.get('multispkr', None)
+        self.use_emovec = h.get('use_emovec',False)
+        self.use_emostream = h.get('use_emostream',False) #TODO
 
         if self.multispkr:
             self.spkr = nn.Embedding(200, h.embedding_dim)
+        
+        if self.use_emovec:
+            self.emo_proj = nn.Linear(768,h.embedding_dim)
 
         self.encoder = None
         self.vq = None
@@ -177,6 +182,7 @@ class CodeGenerator(Generator):
         return signal
 
     def forward(self, **kwargs):
+        #TODO add emo vec down projection from data (preload into dataset)
         code_commit_losses = None
         code_metrics = None
         if self.code_vq and kwargs['code'].dtype is torch.int64:
@@ -215,9 +221,19 @@ class CodeGenerator(Generator):
             spkr = self.spkr(kwargs['spkr']).transpose(1, 2)
             spkr = self._upsample(spkr, x.shape[-1])
             x = torch.cat([x, spkr], dim=1)
+        
+        if self.use_emovec:
+            #getitem emovec from dataset
+            emovec = kwargs['emovec']
+            #downprojection
+            emovec = self.emo_proj(emovec)
+            emovec = self._upsample(emovec, x.shape[-1])
+            #concat to x
+            x = torch.cat([x, emovec], dim=1)
+
 
         for k, feat in kwargs.items():
-            if k in ['spkr', 'code', 'f0']:
+            if k in ['spkr', 'code', 'f0','emovec']:
                 continue
 
             feat = self._upsample(feat, x.shape[-1])
