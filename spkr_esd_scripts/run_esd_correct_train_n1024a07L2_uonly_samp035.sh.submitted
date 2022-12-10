@@ -1,0 +1,14 @@
+#!/bin/bash
+# use the bash shell
+set -x 
+eval "$(conda shell.bash hook)"
+# echo each command to standard out before running it
+
+conda activate /ocean/projects/tra220029p/chsieh1/miniconda3/envs/hi5g
+
+#later to checkpoints/ESD_downsamp_speakers (use first 3 speakers)
+# conf=$(echo $0 | sed -e "s/run_esd_train_n//g" -e "s/.sh//g" -e "s/\.\///g")
+conf=1024a07L2_uonly_samp035
+# ls configs/ESD_correct_spkr/hubert${conf}_lut.json
+python -u train.py --checkpoint_path checkpoints/ESD_correct_spkr_resynth_n${conf} \
+--config configs/ESD_correct_spkr/hubert${conf}_lut.json
